@@ -86,10 +86,12 @@ class NestTemperatureSensor(Entity):
     @property
     def device_state_attributes(self):
         """Return the state attributes."""
-        return {
+        attributes = {
             ATTR_BATTERY_LEVEL:
                 self.device.device_data[self.device_id]['battery_level']
         }
+        attributes.update(self.device.device_data[self.device_id])
+        return attributes
 
 
 class NestProtectSensor(Entity):

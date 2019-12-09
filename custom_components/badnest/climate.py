@@ -232,6 +232,11 @@ class NestClimate(ClimateDevice):
             return self._fan_modes
         return None
 
+    @property
+    def device_state_attributes(self):
+        """Return the state attributes."""
+        self.device.device_data[self.device_id]
+
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
         temp = None
