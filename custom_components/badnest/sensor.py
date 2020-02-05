@@ -1,6 +1,9 @@
 import logging
 
 from homeassistant.helpers.entity import Entity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDevice, DEVICE_CLASS_PRESENCE
+)
 
 from .const import DOMAIN
 
@@ -42,6 +45,14 @@ async def async_setup_platform(hass,
             protect_sensors.append(NestProtectSensor(sensor, sensor_type, api))
 
     async_add_entities(protect_sensors)
+
+    presence_sensors = []
+    _LOGGER.info("Adding presence sensors")
+    for sensor in api['presence']:
+        _LOGGER.info(f"Adding nest presence sensor uuid: {sensor}")
+        presence_sensors.append(NestPresenceSensor(sensor, api))
+
+    async_add_entities(presence_sensors)
 
 
 class NestTemperatureSensor(Entity):
@@ -121,3 +132,39 @@ class NestProtectSensor(Entity):
     def update(self):
         """Get the latest data from the Protect and updates the states."""
         self.device.update()
+
+
+class NestPresenceSensor(BinarySensorDevice):
+    """Implementation of presence sensor."""
+
+    def __init__(self, device_id, api):
+        """Initialize the sensor."""
+        self.device_id = device_id
+        self.device = api
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return self.device.device_data[self.device_id]["name"]
+
+    @property
+    def is_on(self):
+        """Return true if the binary sensor is on."""
+        return not self.device.device_data[self.device_id]["away"]
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_PRESENCE
+
+    @property
+    def device_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "away_setter":
+                self.device.device_data[self.device_id]["away_setter"],
+            "touched_by":
+                self.device.device_data[self.device_id]["touched_by"]["touched_by"],
+            "touched_id":
+                self.device.device_data[self.device_id]["touched_by"]["touched_id"],
+        }

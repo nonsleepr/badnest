@@ -20,6 +20,8 @@ KNOWN_BUCKET_TYPES = [
     "topaz",
     # Temperature sensors
     "kryptonite",
+    # Presence sensors
+    "structure",
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,6 +51,7 @@ class NestAPI():
         self.thermostats = []
         self.temperature_sensors = []
         self.protects = []
+        self.presence = []
         self.login()
         self._get_devices()
         self.update()
@@ -153,6 +156,10 @@ class NestAPI():
                     sn = bucket.replace('device.', '')
                     self.thermostats.append(sn)
                     self.temperature_sensors.append(sn)
+                    self.device_data[sn] = {}
+                elif bucket.startswith('structure.'):
+                    sn = bucket.replace('structure.', '')
+                    self.presence.append(sn)
                     self.device_data[sn] = {}
 
             self.cameras = self._get_cameras()
@@ -300,6 +307,10 @@ class NestAPI():
                         sensor_data['current_temperature']
                     self.device_data[sn]['battery_level'] = \
                         sensor_data['battery_level']
+                elif bucket["object_key"].startswith(
+                        f"structure.{sn}"):
+                    # Important values: away, name
+                    self.device_data[sn] = sensor_data
 
             # Cameras
             for camera in self.cameras:
@@ -483,6 +494,35 @@ class NestAPI():
             _LOGGER.debug('Failed to set eco, trying to log in again')
             self.login()
             self.thermostat_set_eco_mode(device_id, state)
+
+    def thermostat_set_home_away_input(self, device_id, state: bool):
+        if device_id not in self.thermostats:
+            return
+
+        try:
+            self._session.post(
+                f"{self._czfe_url}/v5/put",
+                json={
+                    "objects": [
+                        {
+                            "object_key": f'device.{device_id}',
+                            "op": "MERGE",
+                            "value": {"home_away_input": state},
+                        }
+                    ]
+                },
+                headers={"Authorization": f"Basic {self._access_token}"},
+            )
+        except requests.exceptions.RequestException as e:
+            _LOGGER.error(e)
+            _LOGGER.error('Failed to set Home/Away input')
+            self.thermostat_set_eco_mode(device_id, state)
+        except KeyError:
+            _LOGGER.debug(
+                'Failed to set Home/Away input, trying to log in again'
+            )
+            self.login()
+            self.thermostat_set_home_away_input(device_id, state)
 
     def _camera_set_properties(self, device_id, property, value):
         if device_id not in self.cameras:
