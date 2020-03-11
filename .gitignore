@@ -91,11 +91,3 @@ ENV/
 
 .vscode/
 .DS_Store
-
-__init__.py
-api.py
-camera.py
-climate.py
-const.py
-manifest.json
-sensor.py
